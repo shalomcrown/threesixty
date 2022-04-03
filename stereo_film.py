@@ -11,7 +11,7 @@ import os
 import cv2
 import numpy as np
 import sys
-
+import wx, wx.grid
 
 if len(sys.argv) < 3:
     print("Usage: stereo_film.py  <calibrationFile>  <left input device> <right input device>")
@@ -19,13 +19,21 @@ if len(sys.argv) < 3:
     print("Too few command line arguments\n")
     sys.exit(2)
 
+
+print("OpenCV version", cv2.__version__)
+print("wxPython version", wx.__version__)
+
+
 def nothing(x):
     pass
 
+
 def mouseCallback(event, x, y, flags, userdata):
-    disparity = disp[x, y]
-    print(f"Disparity {disparity} ({x},{y})")
-    inverse = 1.0 / disparity
+    if event == cv2.EVENT_LBUTTONDOWN:
+        disparity = disp[y, x]
+        print(f"Disparity {disparity} ({x},{y})")
+        inverse = 1.0 / disparity
+
 
 # Reading the mapping values for stereo image rectification
 cv_file = cv2.FileStorage(sys.argv[1], cv2.FILE_STORAGE_READ)
