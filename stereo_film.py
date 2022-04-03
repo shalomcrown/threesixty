@@ -24,6 +24,7 @@ def nothing(x):
 
 def mouseCallback(event, x, y, flags, userdata):
     disparity = disp[x, y]
+    print(f"Disparity {disparity} ({x},{y})")
 
 
 # Reading the mapping values for stereo image rectification
