@@ -25,7 +25,7 @@ def nothing(x):
 def mouseCallback(event, x, y, flags, userdata):
     disparity = disp[x, y]
     print(f"Disparity {disparity} ({x},{y})")
-
+    inverse = 1.0 / disparity
 
 # Reading the mapping values for stereo image rectification
 cv_file = cv2.FileStorage(sys.argv[1], cv2.FILE_STORAGE_READ)
