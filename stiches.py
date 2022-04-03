@@ -3,7 +3,7 @@
 #cython: language_level=3, boundscheck=False
 ###############################################################################
 #
-# Playing with stiching 2 360 degree pictures
+# Playing with stiching 2 360 degree pictures AAAA
 #
 ###############################################################################
 
