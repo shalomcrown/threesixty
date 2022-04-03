@@ -19,12 +19,20 @@ if len(sys.argv) < 3:
     print("Too few command line arguments\n")
     sys.exit(2)
 
+
+print("OpenCV version", cv2.__version__)
+print("wxPython version", wx.__version__)
+
+
 def nothing(x):
     pass
 
+
 def mouseCallback(event, x, y, flags, userdata):
-    disparity = disp[x, y]
-    print(f"The Disparity {disparity} ({x},{y})")
+    if event == cv2.EVENT_LBUTTONDOWN:
+        disparity = disp[y, x]
+        print(f"Disparity {disparity} ({x},{y})")
+        inverse = 1.0 / disparity
 
 
 # Reading the mapping values for stereo image rectification

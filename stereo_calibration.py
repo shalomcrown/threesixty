@@ -11,7 +11,7 @@ import os
 import cv2
 import numpy as np
 import sys
-
+import wx, wx.grid
 
 if len(sys.argv) < 2:
     print("Usage: calibration.py  <outputFolder>  [<left input device> <right input device>]")
