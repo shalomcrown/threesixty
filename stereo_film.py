@@ -11,7 +11,7 @@ import os
 import cv2
 import numpy as np
 import sys
-
+import wx
 
 if len(sys.argv) < 3:
     print("Usage: stereo_film.py  <calibrationFile>  <left input device> <right input device>")
