@@ -193,6 +193,15 @@ class WxStereo(wx.Frame):
         self.updateVideoFrame(self.rightWxImageForDisplay, self.rightInputPanel)
         logger.debug("Updated right")
 
+    def updateOutputFrameLeft(self, evt):
+        self.updateVideoFrame(self.leftWxOutputForDisplay, self.leftOutputPanel)
+        logger.debug("Updated left")
+
+    def updateOutputFrameRight(self, evt):
+        self.updateVideoFrame(self.rightWxOutputForDisplay, self.rightOutputPanel)
+        logger.debug("Updated right")
+
+
     def onTakeCalibrationPic(self, evt):
         self.takeCalibrationPicture = True
         logger.debug("Take calibration pic")
@@ -201,10 +210,68 @@ class WxStereo(wx.Frame):
         logger.debug("Calc calibration")
         self.calibrationCalc()
 
+    def saveCoefficients(self, evt):
+        if self.leftStereoMap is None or self.rightStereoMap is None:
+            wx.MessageDialog(self, "No calibration coefficients available")
+            return
+
+        with wx.FileDialog(self, "Open coefficients file", defaultDir=os.path.expanduser("~/Videos"), wildcard="XML files|*xml",
+                           style=wx.FD_SAVE) as fileDialog:
+            if fileDialog.ShowModal() == wx.ID_CANCEL:
+                return
+
+            file = cv2.FileStorage(fileDialog.GetPath(), cv2.FILE_STORAGE_WRITE)
+
+            file.write("left_camera_matrix", self.newCameraMatrixLeft)
+            file.write("left_distortion_coefficients",  self.distCoeffsLeft)
+            file.write("left_stereo_rectification", self.leftRectification)
+            file.write("left_stereo_projection", self.projectionMatrixLeft)
+
+            file.write("right_camera_matrix", self.newCameraMatrixRight)
+            file.write("right_distortion_coefficients",  self.distCoeffsRight)
+            file.write("right_stereo_rectification", self.rightRectification)
+            file.write("right_stereo_projection", self.projectionMatrixRight)
+
+            file.write("Left_Stereo_Map_x", self.leftStereoMap[0])
+            file.write("Left_Stereo_Map_y", self.leftStereoMap[1])
+            file.write("Right_Stereo_Map_x", self.rightStereoMap[0])
+            file.write("Right_Stereo_Map_y", self.rightStereoMap[1])
+            file.release()
+
+    #---------------------------------------------------------------------
+
+    def loadCoefficients(self, evt):
+        with wx.FileDialog(self, "Open coefficients file", defaultDir=os.path.expanduser("~/Videos"), wildcard="XML files|*xml",
+                           style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST) as fileDialog:
+            if fileDialog.ShowModal() == wx.ID_CANCEL:
+                return
+
+            file = cv2.FileStorage(fileDialog.GetPath(), cv2.FILE_STORAGE_READ)
+            file.getNode("")
+
+            self.newCameraMatrixLeft = file.getNode("left_camera_matrix").mat()
+            self.distCoeffsLeft = file.getNode("left_distortion_coefficients").mat()
+            self.leftRectification = file.getNode("left_stereo_rectification").mat()
+            self.projectionMatrixLeft = file.getNode("left_stereo_projection").mat()
+
+            self.newCameraMatrixRight = file.getNode("right_camera_matrix").mat()
+            self.distCoeffsRight = file.getNode("right_distortion_coefficients").mat()
+            self.rightRectification = file.getNode("right_stereo_rectification").mat()
+            self.projectionMatrixRight = file.getNode("right_stereo_projection").mat()
+
+            self.leftStereoMap = []
+            self.rightStereoMap = []
+
+            self.leftStereoMap.append(file.getNode("Left_Stereo_Map_x").mat())
+            self.leftStereoMap.append(file.getNode("Left_Stereo_Map_y").mat())
+            self.rightStereoMap.append(file.getNode("Right_Stereo_Map_x").mat())
+            self.rightStereoMap.append(file.getNode("Right_Stereo_Map_y").mat())
+            file.release()
+
     # ------------------------------------------------------------------------------------------
 
     def __init__(self, filename=None):
-        wx.Frame.__init__(self, None, title="KLV Video player")
+        wx.Frame.__init__(self, None, title="Stereo test")
 
         self.bitmap = None
         self.videoThread = None
@@ -215,6 +282,8 @@ class WxStereo(wx.Frame):
         self.capRight = None
         self.rightWxImageForDisplay = None
         self.leftWxImageForDisplay = None
+        self.rightWxOutputForDisplay = None
+        self.leftWxOutputForDisplay = None
         self.takeCalibrationPicture = False
         self.readSavedPictures = False
         self.imageSavepath = tempfile.mkdtemp()
@@ -232,6 +301,7 @@ class WxStereo(wx.Frame):
         toolbar.Realize()
 
         self.Bind(wx.EVT_TOOL, self.onTakeCalibrationPic, takePicTool)
+        self.Bind(wx.EVT_TOOL, self.onCalibrationCalc, calcCalibTool)
 
         chooseLeftInputItem = fileMenu.Append(wx.ID_ANY, 'Left input...', 'Choose left input')
         self.Bind(wx.EVT_MENU, self.chooseLeftInput, chooseLeftInputItem)
@@ -247,6 +317,12 @@ class WxStereo(wx.Frame):
 
         setSavedPicsItem = fileMenu.Append(wx.ID_ANY, 'Set saved pics folder...')
         self.Bind(wx.EVT_MENU, self.setSavedPics, setSavedPicsItem)
+
+        saveCoefficientsItem = fileMenu.Append(wx.ID_ANY, 'Save calibration...')
+        self.Bind(wx.EVT_MENU, self.saveCoefficients, saveCoefficientsItem)
+
+        loadCoefficientsItem = fileMenu.Append(wx.ID_ANY, 'Load calibration...')
+        self.Bind(wx.EVT_MENU, self.loadCoefficients, loadCoefficientsItem)
 
         fileItem = fileMenu.Append(wx.ID_EXIT, 'Quit', 'Quit application')
         self.Bind(wx.EVT_MENU, self.Close, fileItem)
@@ -266,7 +342,14 @@ class WxStereo(wx.Frame):
 
         self.leftInputPanel.Bind(wx.EVT_PAINT, self.updateFrameLeft)
         self.rightInputPanel.Bind(wx.EVT_PAINT, self.updateFrameRight)
-        # self.displayPanel.Bind(wx.EVT_SIZE, self.videoDisplaySizeChanged)
+
+        self.leftOutputPanel = wx.Panel(bottomVerticalSplitter)
+        self.rightOutputPanel = wx.Panel(bottomVerticalSplitter)
+
+        bottomVerticalSplitter.SplitVertically(self.leftOutputPanel, self.rightOutputPanel, sashPosition=640)
+
+        self.leftOutputPanel.Bind(wx.EVT_PAINT, self.updateOutputFrameLeft)
+        self.rightOutputPanel.Bind(wx.EVT_PAINT, self.updateOutputFrameRight)
 
         sizer = wx.BoxSizer(wx.VERTICAL)
         sizer.Add(horizontalSplitter, proportion=1, flag=wx.EXPAND)
@@ -322,6 +405,23 @@ class WxStereo(wx.Frame):
         self.rightWxImageForDisplay = self.resizeWithAspectRatio(imageForDisplay, self.rightInputPanel)
         self.rightInputPanel.Refresh()
 
+    def displayLeftOutputImage(self, inputMat):
+        if inputMat is None or not inputMat.size:
+            return
+        logger.debug("Display left image")
+        imageForDisplay = cv2.cvtColor(inputMat.copy(), cv2.COLOR_BGR2RGB)
+        self.leftWxOutputForDisplay = self.resizeWithAspectRatio(imageForDisplay, self.leftOutputPanel)
+        self.leftOutputPanel.Refresh()
+
+
+    def displayRightOuputImage(self, inputMat):
+        if inputMat is None or not inputMat.size:
+            return
+        logger.debug("Display right image")
+        imageForDisplay = cv2.cvtColor(inputMat.copy(), cv2.COLOR_BGR2RGB)
+        self.rightWxOutputForDisplay = self.resizeWithAspectRatio(imageForDisplay, self.rightOutputPanel)
+        self.rightOutputPanel.Refresh()
+
     #---------------------------------------------------------------------
 
     def playVideo(self):
@@ -333,6 +433,22 @@ class WxStereo(wx.Frame):
         rightOK = False
         leftOK = False
         self.savedImageNumber = 0
+        self.cameraMatrixLeft = None
+        self.distCoeffsLeft = None
+        self.rvecsLeft = None
+        self.tvecsLeft = None
+        self.newCameraMatrixLeft = None
+        self.roiLeft = None
+        self.cameraMatrixRight = None
+        self.distCoeffsRight = None
+        self.rvecsRight = None
+        self.tvecsRight = None
+        self.newCameraMatrixRight = None
+        self.roiRight = None
+        self.rotation = self.translation = self.essential = self.fundamental = None
+        self.leftRectification = self.rightRectification = self.projectionMatrixLeft = self.projectionMatrixRight = None
+        self.Qmatrix = self.leftROI = self.rightROI = None
+        self.leftStereoMap = self.rightStereoMap = None
 
         if self.capLeft is not None:
             self.capLeft.release()
@@ -363,6 +479,7 @@ class WxStereo(wx.Frame):
                     self.savedImageNumber = self.savedImageNumber + 1
                 else:
                     self.readSavedPictures = False
+                    leftImage = rightImage = None
                     continue
             else:
                 storedPic = False
@@ -385,57 +502,113 @@ class WxStereo(wx.Frame):
             rightRet, cornersRight = cv2.findChessboardCorners(self.grayRight, self.CHECKERBOARD,
                                 cv2.CALIB_CB_ADAPTIVE_THRESH + cv2.CALIB_CB_FAST_CHECK + cv2.CALIB_CB_NORMALIZE_IMAGE)
 
-            if not leftRet or not rightRet:
+            if leftRet and rightRet:
+                # print("Left corners", cornersLeft)
+                # print("Right corners", cornersRight)
+
+                cornersLeft2 = cv2.cornerSubPix(self.grayLeft, cornersLeft, (11, 11), (-1, -1), self.criteria)
+                cornersRight2 = cv2.cornerSubPix(self.grayRight, cornersRight, (11, 11), (-1, -1), self.criteria)
+
+                displayLeft = cv2.drawChessboardCorners(leftImage.copy(), self.CHECKERBOARD, cornersLeft2, leftRet)
+                displayRight = cv2.drawChessboardCorners(rightImage.copy(), self.CHECKERBOARD, cornersRight2, rightRet)
+
+                self.displayLeftInputImage(displayLeft)
+                self.displayRightInputImage(displayRight)
+
+                # print("Left corners improved", cornersLeft)
+                # print("Right corners improved", cornersRight)
+
+                if (self.takeCalibrationPicture or storedPic) and  len(cornersLeft2) and len(cornersRight2):
+                    self.takeCalibrationPicture = False
+
+                    if self.imageSavepath is not None and not storedPic:
+                        cv2.imwrite(os.path.join(self.imageSavepath, "leftImage_" + str(self.savedImageNumber) + ".jpg"), leftImage)
+                        cv2.imwrite(os.path.join(self.imageSavepath, "rightImage_" + str(self.savedImageNumber) + ".jpg"), rightImage)
+                        self.savedImageNumber = self.savedImageNumber + 1;
+
+                    self.imgpointsLeft.append(cornersLeft)
+                    self.imgpointsRight.append(cornersRight)
+                    self.objpoints.append(self.objp)
+
+                else:
+                    self.takeCalibrationPicture = False
+            else:
                 self.displayLeftInputImage(leftImage)
                 self.displayRightInputImage(rightImage)
-                continue
-
-            # print("Left corners", cornersLeft)
-            # print("Right corners", cornersRight)
-
-            cornersLeft2 = cv2.cornerSubPix(self.grayLeft, cornersLeft, (11, 11), (-1, -1), self.criteria)
-            cornersRight2 = cv2.cornerSubPix(self.grayRight, cornersRight, (11, 11), (-1, -1), self.criteria)
-
-            displayLeft = cv2.drawChessboardCorners(leftImage.copy(), self.CHECKERBOARD, cornersLeft2, leftRet)
-            displayRight = cv2.drawChessboardCorners(rightImage.copy(), self.CHECKERBOARD, cornersRight2, rightRet)
-
-            self.displayLeftInputImage(displayLeft)
-            self.displayRightInputImage(displayRight)
-
-            # print("Left corners improved", cornersLeft)
-            # print("Right corners improved", cornersRight)
-
-            if (self.takeCalibrationPicture or storedPic) and  len(cornersLeft2) and len(cornersRight2):
                 self.takeCalibrationPicture = False
 
-                if self.imageSavepath is not None and not storedPic:
-                    cv2.imwrite(os.path.join(self.imageSavepath, "leftImage_" + str(self.savedImageNumber) + ".jpg"), leftImage)
-                    cv2.imwrite(os.path.join(self.imageSavepath, "rightImage_" + str(self.savedImageNumber) + ".jpg"), rightImage)
-                    self.savedImageNumber = self.savedImageNumber + 1;
 
-                self.imgpointsLeft.append(cornersLeft)
-                self.imgpointsRight.append(cornersRight)
+            if self.leftStereoMap is not None and len(self.leftStereoMap) and \
+                            self.rightStereoMap is not None and len(self.rightStereoMap):
+                
+                leftRectifiedImage = cv2.remap(leftImage, self.leftStereoMap[0], self.leftStereoMap[1], 
+                                               cv2.INTER_LANCZOS4, cv2.BORDER_CONSTANT, 0)
+                
+                rightRectifiedImage = cv2.remap(rightImage, self.rightStereoMap[0], self.rightStereoMap[1], 
+                                               cv2.INTER_LANCZOS4, cv2.BORDER_CONSTANT, 0)
 
-            else:
-                self.takeCalibrationPicture = False
+                outputAnaglyph = leftRectifiedImage.copy()
+                outputAnaglyph[:, :, 0] = leftRectifiedImage[:, :, 0]
+                outputAnaglyph[:, :, 1] = leftRectifiedImage[:, :, 1]
+                outputAnaglyph[:, :, 2] = rightRectifiedImage[:, :, 2]
+
+                self.displayRightOuputImage(outputAnaglyph)
 
     #---------------------------------------------------------------------
 
     def calibrationCalc(self):
-        retvalLeft, cameraMatrixLeft, distCoeffsLeft, rvecsLeft, tvecsLeft  = cv2.calibrateCamera(self.objp,
+        retvalLeft, self.cameraMatrixLeft, self.distCoeffsLeft, self.rvecsLeft, self.tvecsLeft  = cv2.calibrateCamera(
+                                                                    self.objpoints,
                                                                     self.imgpointsLeft,
                                                                     self.grayLeft.shape[::-1],
                                                                     None, None)
         hL, wL = self.grayLeft.shape[:2]
 
-        newCameraMatrixLeft, roiLeft= cv2.getOptimalNewCameraMatrix(cameraMatrixLeft, distCoeffsLeft, (wL,hL),1,(wL,hL))
+        self.newCameraMatrixLeft, self.roiLeft  = cv2.getOptimalNewCameraMatrix(self.cameraMatrixLeft, self.distCoeffsLeft, (wL,hL),1,(wL,hL))
 
-        retvalRight, cameraMatrixRight, distCoeffsRight, rvecsRight, tvecsRight = cv2.calibrateCamera(self.objp,
+        retvalRight, self.cameraMatrixRight, self.distCoeffsRight, self.rvecsRight, self.tvecsRight = cv2.calibrateCamera(
+                                                                self.objpoints,
                                                                 self.imgpointsRight,
-                                                                self.greyRight.shape[::-1],
+                                                                self.grayRight.shape[::-1],
                                                                 None,None)
-        hR, wR= self.greyRight.shape[:2]
-        newCameraMatrixRight, roiRight = cv2.getOptimalNewCameraMatrix(cameraMatrixRight, distCoeffsRight, (wR,hR),1,(wR,hR))
+        hR, wR= self.grayRight.shape[:2]
+        self.newCameraMatrixRight, self.roiRight = cv2.getOptimalNewCameraMatrix(self.cameraMatrixRight, self.distCoeffsRight, (wR,hR),1,(wR,hR))
+
+        flags = 0
+        flags |= cv2.CALIB_FIX_INTRINSIC
+        criteria_stereo = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
+
+        retStereo, self.newCameraMatrixLeft, self.distCoeffsLeft, self.newCameraMatrixRight, self.distCoeffsRight, \
+        self.rotation, self.translation, self.essential, self.fundamental = cv2.stereoCalibrate(
+                            self.objpoints,
+                            self.imgpointsLeft,
+                            self.imgpointsRight,
+                            self.newCameraMatrixLeft,
+                            self.distCoeffsLeft,
+                            self.newCameraMatrixRight,
+                            self.distCoeffsRight,
+                            self.grayLeft.shape[::-1],
+                            criteria_stereo, flags)
+
+        rectify_scale = 1
+        self.leftRectification, self.rightRectification, self.projectionMatrixLeft, self.projectionMatrixRight, \
+        self.Qmatrix, self.leftROI, self.rightROI = cv2.stereoRectify(
+                            self.newCameraMatrixLeft,  self.distCoeffsLeft,  self.newCameraMatrixRight,  self.distCoeffsRight,
+                            self.grayLeft.shape[::-1],
+                            self.rotation, self.translation,
+                            rectify_scale, (0, 0))
+
+        self.leftStereoMap =  cv2.initUndistortRectifyMap(
+                                    self.newCameraMatrixLeft,
+                                    self.distCoeffsLeft,
+                                    self.leftRectification, self.projectionMatrixLeft,
+                                    self.grayLeft.shape[::-1], cv2.CV_16SC2)
+
+        self.rightStereoMap =  cv2.initUndistortRectifyMap(
+                                    self.newCameraMatrixRight,
+                                    self.distCoeffsRight,
+                                    self.rightRectification, self.projectionMatrixRight,
+                                    self.grayRight.shape[::-1], cv2.CV_16SC2)
 
 # ------------------------------------------------------------------------------------------
 
