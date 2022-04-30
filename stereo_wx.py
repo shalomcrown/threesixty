@@ -201,6 +201,7 @@ class WxStereo(wx.Frame):
         self.updateVideoFrame(self.rightWxOutputForDisplay, self.rightOutputPanel)
         logger.debug("Updated right")
 
+    #---------------------------------------------------------------------
 
     def onTakeCalibrationPic(self, evt):
         self.takeCalibrationPicture = True
@@ -209,6 +210,8 @@ class WxStereo(wx.Frame):
     def onCalibrationCalc(self, evt):
         logger.debug("Calc calibration")
         self.calibrationCalc()
+
+    #---------------------------------------------------------------------
 
     def saveCoefficients(self, evt):
         if self.leftStereoMap is None or self.rightStereoMap is None:
@@ -351,11 +354,53 @@ class WxStereo(wx.Frame):
         self.leftOutputPanel.Bind(wx.EVT_PAINT, self.updateOutputFrameLeft)
         self.rightOutputPanel.Bind(wx.EVT_PAINT, self.updateOutputFrameRight)
 
-        sizer = wx.BoxSizer(wx.VERTICAL)
-        sizer.Add(horizontalSplitter, proportion=1, flag=wx.EXPAND)
+        sizer = wx.BoxSizer(wx.HORIZONTAL)
+        sizer.Add(horizontalSplitter, proportion=3, flag=wx.EXPAND)
+        sizer.AddSpacer(5)
+
+        adjustmentsPanel = wx.Panel(self)
+        sizer.Add(adjustmentsPanel, proportion=1)
         self.SetSizer(sizer)
 
-        self.SetSize(0, 0, 1280, 960)
+        adjustmentsSizer = wx.FlexGridSizer(2)
+        slider_numDisparities =    wx.Slider(adjustmentsPanel, value = 1,  maxValue = 17)
+        slider_blockSize =         wx.Slider(adjustmentsPanel, value = 5,  maxValue = 50)
+        slider_preFilterType =     wx.Slider(adjustmentsPanel, value = 1,  maxValue = 1)
+        slider_preFilterSize =     wx.Slider(adjustmentsPanel, value = 2,  maxValue = 25)
+        slider_preFilterCap =      wx.Slider(adjustmentsPanel, value = 5,  maxValue = 62)
+        slider_textureThreshold =  wx.Slider(adjustmentsPanel, value = 10, maxValue = 100)
+        slider_uniquenessRatio =   wx.Slider(adjustmentsPanel, value = 15, maxValue = 100)
+        slider_speckleRange =      wx.Slider(adjustmentsPanel, value = 0,  maxValue = 100)
+        slider_speckleWindowSize = wx.Slider(adjustmentsPanel, value = 3,  maxValue = 25)
+        slider_disp12MaxDiff =     wx.Slider(adjustmentsPanel, value = 5,  maxValue = 25)
+        slider_minDisparity =      wx.Slider(adjustmentsPanel, value = 5,  maxValue = 25)
+
+        adjustmentsSizer.Add(wx.StaticText(adjustmentsPanel,label = 'numDisparities'));
+        adjustmentsSizer.Add(slider_numDisparities)
+        adjustmentsSizer.Add(wx.StaticText(adjustmentsPanel,label = 'blockSize'));
+        adjustmentsSizer.Add(slider_blockSize)
+        adjustmentsSizer.Add(wx.StaticText(adjustmentsPanel,label = 'preFilterType'));
+        adjustmentsSizer.Add(slider_preFilterType)
+        adjustmentsSizer.Add(wx.StaticText(adjustmentsPanel,label = 'preFilterSize'));
+        adjustmentsSizer.Add(slider_preFilterSize)
+        adjustmentsSizer.Add(wx.StaticText(adjustmentsPanel,label = 'preFilterCap'));
+        adjustmentsSizer.Add(slider_preFilterCap)
+        adjustmentsSizer.Add(wx.StaticText(adjustmentsPanel,label = 'textureThreshold'));
+        adjustmentsSizer.Add(slider_textureThreshold)
+        adjustmentsSizer.Add(wx.StaticText(adjustmentsPanel,label = 'uniquenessRatio'));
+        adjustmentsSizer.Add(slider_uniquenessRatio)
+        adjustmentsSizer.Add(wx.StaticText(adjustmentsPanel,label = 'speckleRange'));
+        adjustmentsSizer.Add(slider_speckleRange)
+        adjustmentsSizer.Add(wx.StaticText(adjustmentsPanel,label = 'speckleWindowSize'));
+        adjustmentsSizer.Add(slider_speckleWindowSize)
+        adjustmentsSizer.Add(wx.StaticText(adjustmentsPanel,label = 'disp12MaxDiff'));
+        adjustmentsSizer.Add(slider_disp12MaxDiff)
+        adjustmentsSizer.Add(wx.StaticText(adjustmentsPanel,label = 'minDisparity'));
+        adjustmentsSizer.Add(slider_minDisparity)
+
+        adjustmentsPanel.SetSizer(adjustmentsSizer)
+
+        self.SetSize(0, 0, 1280 * 3 // 2, 960)
         self.Center()
         self.Show()
 
@@ -540,11 +585,11 @@ class WxStereo(wx.Frame):
 
             if self.leftStereoMap is not None and len(self.leftStereoMap) and \
                             self.rightStereoMap is not None and len(self.rightStereoMap):
-                
-                leftRectifiedImage = cv2.remap(leftImage, self.leftStereoMap[0], self.leftStereoMap[1], 
+
+                leftRectifiedImage = cv2.remap(leftImage, self.leftStereoMap[0], self.leftStereoMap[1],
                                                cv2.INTER_LANCZOS4, cv2.BORDER_CONSTANT, 0)
-                
-                rightRectifiedImage = cv2.remap(rightImage, self.rightStereoMap[0], self.rightStereoMap[1], 
+
+                rightRectifiedImage = cv2.remap(rightImage, self.rightStereoMap[0], self.rightStereoMap[1],
                                                cv2.INTER_LANCZOS4, cv2.BORDER_CONSTANT, 0)
 
                 outputAnaglyph = leftRectifiedImage.copy()
