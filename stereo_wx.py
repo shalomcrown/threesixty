@@ -294,6 +294,8 @@ class WxStereo(wx.Frame):
         self.objpoints = []
         self.imgpointsLeft = []
         self.imgpointsRight = []
+        self.stereo = cv2.StereoBM_create()
+
 
         self.setupChessboard(6, 9)
         menubar = wx.MenuBar()
@@ -363,40 +365,40 @@ class WxStereo(wx.Frame):
         self.SetSizer(sizer)
 
         adjustmentsSizer = wx.FlexGridSizer(2)
-        slider_numDisparities =    wx.Slider(adjustmentsPanel, value = 1,  maxValue = 17)
-        slider_blockSize =         wx.Slider(adjustmentsPanel, value = 5,  maxValue = 50)
-        slider_preFilterType =     wx.Slider(adjustmentsPanel, value = 1,  maxValue = 1)
-        slider_preFilterSize =     wx.Slider(adjustmentsPanel, value = 2,  maxValue = 25)
-        slider_preFilterCap =      wx.Slider(adjustmentsPanel, value = 5,  maxValue = 62)
-        slider_textureThreshold =  wx.Slider(adjustmentsPanel, value = 10, maxValue = 100)
-        slider_uniquenessRatio =   wx.Slider(adjustmentsPanel, value = 15, maxValue = 100)
-        slider_speckleRange =      wx.Slider(adjustmentsPanel, value = 0,  maxValue = 100)
-        slider_speckleWindowSize = wx.Slider(adjustmentsPanel, value = 3,  maxValue = 25)
-        slider_disp12MaxDiff =     wx.Slider(adjustmentsPanel, value = 5,  maxValue = 25)
-        slider_minDisparity =      wx.Slider(adjustmentsPanel, value = 5,  maxValue = 25)
+        self.slider_numDisparities =    wx.Slider(adjustmentsPanel, value = 1,  maxValue = 17, minValue=1)
+        self.slider_blockSize =         wx.Slider(adjustmentsPanel, value = 5,  maxValue = 50)
+        self.slider_preFilterType =     wx.Slider(adjustmentsPanel, value = 1,  maxValue = 1)
+        self.slider_preFilterSize =     wx.Slider(adjustmentsPanel, value = 2,  maxValue = 25)
+        self.slider_preFilterCap =      wx.Slider(adjustmentsPanel, value = 5,  maxValue = 62)
+        self.slider_textureThreshold =  wx.Slider(adjustmentsPanel, value = 10, maxValue = 100)
+        self.slider_uniquenessRatio =   wx.Slider(adjustmentsPanel, value = 15, maxValue = 100)
+        self.slider_speckleRange =      wx.Slider(adjustmentsPanel, value = 0,  maxValue = 100)
+        self.slider_speckleWindowSize = wx.Slider(adjustmentsPanel, value = 3,  maxValue = 25)
+        self.slider_disp12MaxDiff =     wx.Slider(adjustmentsPanel, value = 5,  maxValue = 25)
+        self.slider_minDisparity =      wx.Slider(adjustmentsPanel, value = 5,  maxValue = 25)
 
         adjustmentsSizer.Add(wx.StaticText(adjustmentsPanel,label = 'numDisparities'));
-        adjustmentsSizer.Add(slider_numDisparities)
+        adjustmentsSizer.Add(self.slider_numDisparities)
         adjustmentsSizer.Add(wx.StaticText(adjustmentsPanel,label = 'blockSize'));
-        adjustmentsSizer.Add(slider_blockSize)
+        adjustmentsSizer.Add(self.slider_blockSize)
         adjustmentsSizer.Add(wx.StaticText(adjustmentsPanel,label = 'preFilterType'));
-        adjustmentsSizer.Add(slider_preFilterType)
+        adjustmentsSizer.Add(self.slider_preFilterType)
         adjustmentsSizer.Add(wx.StaticText(adjustmentsPanel,label = 'preFilterSize'));
-        adjustmentsSizer.Add(slider_preFilterSize)
+        adjustmentsSizer.Add(self.slider_preFilterSize)
         adjustmentsSizer.Add(wx.StaticText(adjustmentsPanel,label = 'preFilterCap'));
-        adjustmentsSizer.Add(slider_preFilterCap)
+        adjustmentsSizer.Add(self.slider_preFilterCap)
         adjustmentsSizer.Add(wx.StaticText(adjustmentsPanel,label = 'textureThreshold'));
-        adjustmentsSizer.Add(slider_textureThreshold)
+        adjustmentsSizer.Add(self.slider_textureThreshold)
         adjustmentsSizer.Add(wx.StaticText(adjustmentsPanel,label = 'uniquenessRatio'));
-        adjustmentsSizer.Add(slider_uniquenessRatio)
+        adjustmentsSizer.Add(self.slider_uniquenessRatio)
         adjustmentsSizer.Add(wx.StaticText(adjustmentsPanel,label = 'speckleRange'));
-        adjustmentsSizer.Add(slider_speckleRange)
+        adjustmentsSizer.Add(self.slider_speckleRange)
         adjustmentsSizer.Add(wx.StaticText(adjustmentsPanel,label = 'speckleWindowSize'));
-        adjustmentsSizer.Add(slider_speckleWindowSize)
+        adjustmentsSizer.Add(self.slider_speckleWindowSize)
         adjustmentsSizer.Add(wx.StaticText(adjustmentsPanel,label = 'disp12MaxDiff'));
-        adjustmentsSizer.Add(slider_disp12MaxDiff)
+        adjustmentsSizer.Add(self.slider_disp12MaxDiff)
         adjustmentsSizer.Add(wx.StaticText(adjustmentsPanel,label = 'minDisparity'));
-        adjustmentsSizer.Add(slider_minDisparity)
+        adjustmentsSizer.Add(self.slider_minDisparity)
 
         adjustmentsPanel.SetSizer(adjustmentsSizer)
 
@@ -598,6 +600,41 @@ class WxStereo(wx.Frame):
                 outputAnaglyph[:, :, 2] = rightRectifiedImage[:, :, 2]
 
                 self.displayRightOuputImage(outputAnaglyph)
+
+                numDisparities =    self.slider_numDisparities.GetValue()  * 16
+                blockSize =         self.slider_blockSize.GetValue() * 2 + 5
+                preFilterType =     self.slider_preFilterType.GetValue()
+                preFilterSize =     self.slider_preFilterSize.GetValue() * 2 + 5
+                preFilterCap =      self.slider_preFilterCap.GetValue()
+                textureThreshold =  self.slider_textureThreshold.GetValue()
+                uniquenessRatio =   self.slider_uniquenessRatio.GetValue()
+                speckleRange =      self.slider_speckleRange.GetValue()
+                speckleWindowSize = self.slider_speckleWindowSize.GetValue()  * 2
+                disp12MaxDiff =     self.slider_disp12MaxDiff.GetValue()
+                minDisparity =      self.slider_minDisparity.GetValue()
+
+                # Setting the updated parameters before computing disparity map
+                self.stereo.setNumDisparities(numDisparities)
+                self.stereo.setBlockSize(blockSize)
+                self.stereo.setPreFilterType(preFilterType)
+                self.stereo.setPreFilterSize(preFilterSize)
+                self.stereo.setPreFilterCap(preFilterCap)
+                self.stereo.setTextureThreshold(textureThreshold)
+                self.stereo.setUniquenessRatio(uniquenessRatio)
+                self.stereo.setSpeckleRange(speckleRange)
+                self.stereo.setSpeckleWindowSize(speckleWindowSize)
+                self.stereo.setDisp12MaxDiff(disp12MaxDiff)
+                self.stereo.setMinDisparity(minDisparity)
+
+                grayLeftRectified = cv2.cvtColor(leftRectifiedImage, cv2.COLOR_BGR2GRAY)
+                grayRightRectified = cv2.cvtColor(rightRectifiedImage, cv2.COLOR_BGR2GRAY)
+                disparity = self.stereo.compute(grayLeftRectified, grayRightRectified)
+                self.displayLeftOutputImage(disparity.copy().astype(np.uint8))
+
+                # disparity = disparity.astype(np.float32)
+                # disparity = (disparity / 16.0 - minDisparity) / numDisparities
+                # disparity = (disparity * 255).astype(np.uint8)
+
 
     #---------------------------------------------------------------------
 
