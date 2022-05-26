@@ -157,7 +157,11 @@ class WxStereo(wx.Frame):
             self.startVideoThread()
 
     def setSavedPics(self, evt):
-        pass
+        with wx.DirDialog(self, "Saved pics folder", defaultPath=os.path.expanduser("~/Videos"),
+                           style= wx.DD_DIR_MUST_EXIST) as fileDialog:
+            if fileDialog.ShowModal() == wx.ID_CANCEL:
+                return None
+            self.imageSavepath = fileDialog.GetPath()
 
     def readSavedPics(self, evt):
         with wx.DirDialog(self, "Saved pics folder", defaultPath=os.path.expanduser("~/Videos"),
